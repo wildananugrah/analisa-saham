@@ -166,20 +166,12 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const rrCls = (v) => v == null || !(META.minRatio > 0) ? '' : v >= META.minRatio ? 'up' : 'down';
 const nf = (v, d = 0) => v == null || typeof v !== 'number' ? 'n/a' : v.toLocaleString('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d });
 const pct = (v, d = 1, sign = false) => v == null ? 'n/a' : (sign && v > 0 ? '+' : '') + nf(v, d) + '%';
-const BAD_WY = new Set(['distribusi', 'markdown']), BAD_VPA = new Set(['upthrust', 'no-demand']);
+const BAD_WY = new Set(['distribusi', 'markdown']);
 
-function flags(r) {
-  const out = [];
-  if (BAD_WY.has(r.WYCKOFF)) out.push(['Wyckoff ' + r.WYCKOFF, 'bad']);
-  if (BAD_VPA.has(r.VPA_TERAKHIR)) out.push([r.VPA_TERAKHIR + ' ' + (r.VPA_TANGGAL || '').slice(5), 'bad']);
-  if (r.FASE === 'rebound') out.push(['rebound dlm downtrend', 'warn']);
-  if (r.DIVERGENSI_OBV === 'bearish') out.push(['OBV bearish', 'warn']);
-  if (r.VOLUME_BACA === 'tekanan-jual' || r.VOLUME_BACA === 'rally-lemah') out.push([r.VOLUME_BACA, 'warn']);
-  return out;
-}
 ROWS.forEach(r => {
   r.pass = r.GERBANG === 'lolos';
-  r.flags = flags(r);
+  // Catatan risiko disusun di screener.ts (catatan()), bukan di sini.
+  r.flags = r.CATATAN || [];
   r.risk = r.ENTRY && r.STOP ? (r.ENTRY - r.STOP) / r.ENTRY * 100 : null;
   r.reward = r.ENTRY && r.TARGET ? (r.TARGET - r.ENTRY) / r.ENTRY * 100 : null;
   r.liquid = !/TIDAK LIKUID/.test(r.GERBANG || '');
@@ -197,7 +189,7 @@ $('#stats').innerHTML = [
 ].map(([v, l, c]) => `<div class="stat ${c || ''}"><b>${nf(v)}</b><span>${l}</span></div>`).join('');
 const bn = [];
 if (META.draft) bn.push(`<div class="banner warn"><b>Draft dari bar intraday.</b> Dijalankan ${esc(META.dibuat)} saat bursa masih buka; volume hari ini belum lengkap, jadi RVOL, baca volume, dan sinyal VPA bertanggal hari ini belum final.</div>`);
-if (META.degraded) bn.push(`<div class="banner info"><b>Peringkat terdegradasi.</b> ${META.exchange === 'IDX' ? 'Data IDX tidak terjangkau: aliran asing, free float, dan RS sektor bernilai n/a. ' : ''}SKOR hanya dari ${esc(META.used)}; jangan bandingkan dengan run yang memakai kolom lebih lengkap.</div>`);
+if (META.degraded) bn.push(`<div class="banner info"><b>Peringkat terdegradasi.</b> ${META.alasanDegradasi ? esc(META.alasanDegradasi) + ' ' : ''}SKOR hanya dari ${esc(META.used)}; jangan bandingkan dengan run yang memakai kolom lebih lengkap.</div>`);
 bn.push(`<div class="banner info">Gerbang: ${esc(META.gerbang)}. Klik kode emiten untuk melihat grafik, level, dan bukti tiap metrik.</div>`);
 $('#banners').innerHTML = bn.join('');
 
@@ -217,7 +209,7 @@ const COLS = [
   ['RR', 'R:R', r => r.RR == null ? '<span class="mut">n/a</span>' : `<span class="${rrCls(r.RR)}">1:${nf(r.RR, 2)}</span>`, 'n'],
   ['ENTRY', 'Entry · Stop · Target', r => r.ENTRY == null ? '<span class="mut">n/a</span>' : `<span class="plan">${nf(r.ENTRY)} · <span class="s">${nf(r.STOP)}</span> · <span class="t">${nf(r.TARGET)}</span></span>`],
   ['reward', 'Risiko / Potensi', r => r.risk == null ? '<span class="mut">n/a</span>' : `<span class="down">−${nf(r.risk, 1)}%</span> / <span class="up">+${nf(r.reward, 1)}%</span>`, 'n'],
-  ['RS60_POIN', 'RS60', r => `<span class="${r.RS60_POIN > 0 ? 'up' : 'down'}">${r.RS60_POIN == null ? 'n/a' : (r.RS60_POIN > 0 ? '+' : '') + nf(r.RS60_POIN, 1)}</span>`, 'n'],
+  ['RS60_POIN', 'RS60', r => `<span class="${r.RS60_POIN == null ? 'mut' : r.RS60_POIN > 0 ? 'up' : 'down'}">${r.RS60_POIN == null ? 'n/a' : (r.RS60_POIN > 0 ? '+' : '') + nf(r.RS60_POIN, 1)}</span>`, 'n'],
   ['RVOL', 'RVOL · baca', r => `<span class="num">${nf(r.RVOL, 2)}×</span> <span class="mut">${esc(r.VOLUME_BACA || '')}</span>`],
   ['VPA_TERAKHIR', 'VPA', r => r.VPA_TERAKHIR ? `${vpaPill(r.VPA_TERAKHIR)} <span class="mut num">${(r.VPA_TANGGAL || '').slice(5)}</span>` : '<span class="mut">—</span>'],
   ['WYCKOFF', 'Wyckoff', r => wyPill(r.WYCKOFF)],
@@ -298,9 +290,10 @@ async function openDetail(code) {
         <div><span>Stop</span><b class="down">${nf(r.STOP)}</b><small>${r.risk == null ? '' : '−' + nf(r.risk, 1) + '%'}</small></div>
         <div><span>Target</span><b class="up">${nf(r.TARGET)}</b><small>${r.reward == null ? '' : '+' + nf(r.reward, 1) + '%'}</small></div>
         <div><span>R:R</span><b class="${rrCls(r.RR)}">${r.RR == null ? 'n/a' : '1:' + nf(r.RR, 2)}</b><small>${META.minRatio > 0 ? 'ambang 1:' + esc(META.minRatioText) : 'bukan syarat gerbang'}</small></div>
+        <div><span>Cut loss evaluasi</span><b class="down">${nf(r.CUT_LOSS)}</b><small>${r.CUT_LOSS == null || !r.ENTRY ? '' : '−' + nf((r.ENTRY - r.CUT_LOSS) / r.ENTRY * 100, 1) + '% · stop dijepit 5–10%'}</small></div>
         <div><span>ATR</span><b>${pct(r.ATR_PERSEN)}</b><small>derak harian</small></div>
       </div>
-      ${r.pass ? `<div class="reason ok">${r.flags.length ? '<b>Lolos, dengan catatan:</b> ' + r.flags.map(f => esc(f[0])).join(' · ') : '<b>Lolos gerbang tanpa peringatan.</b> Tren, fase, VPA, dan Wyckoff tidak menunjukkan sinyal bearish.'}</div>`
+      ${r.pass ? `<div class="reason ok">${r.flags.length ? '<b>Lolos, dengan catatan:</b> ' + r.flags.map(f => esc(f[0])).join(' · ') : '<b>Lolos gerbang tanpa peringatan.</b> Yang diperiksa: Wyckoff, VPA, fase, divergensi OBV, baca volume, dan R:R di bawah 1. Bukan jaminan — periksa grafik dan orderbook sendiri.'}</div>`
         : `<div class="reason"><b>Tersaring:</b>${(r.GERBANG || '').split(' | ').map(s => `<div>${esc(s)}</div>`).join('')}</div>`}
       <div class="chartbox" id="chart"><div class="loading">Memuat grafik…</div></div>
       <div class="metrics" id="metrics"><div class="loading">Memuat analisis…</div></div>

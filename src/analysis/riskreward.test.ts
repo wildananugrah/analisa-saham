@@ -114,3 +114,17 @@ describe('analyzeRiskReward — memilih level TERDEKAT, bukan yang skornya terti
     expect(analyzeRiskReward(208, 10, l).value!.ratio).toBeLessThan(1)
   })
 })
+
+describe('analyzeRiskReward — R:R bukan syarat gerbang', () => {
+  test('minRatio 0: verdict menyebut bukan syarat gerbang, bukan "memadai"', () => {
+    // Risiko 60, imbalan 30 → 0,5. Bukan gerbang, jadi tidak boleh terbaca "memadai".
+    const m = analyzeRiskReward(1000, 20, levels([950], [1030]), 0)
+    expect(m.verdict).toContain('bukan syarat gerbang')
+    expect(m.verdict).not.toMatch(/memadai|TIPIS/)
+  })
+
+  test('minRatio 0: bukti tidak mencetak "ambang 1:0"', () => {
+    const m = analyzeRiskReward(1000, 20, levels([950], [1030]), 0)
+    expect(m.evidence.join(' ')).not.toContain('1:0.')
+  })
+})

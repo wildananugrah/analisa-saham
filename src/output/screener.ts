@@ -2,7 +2,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { columnsFor } from './columns.ts'
 import { IDX, type Market } from '../market.ts'
-import type { ScanRow } from '../analysis/report.ts'
+import { tanggalRun, type ScanRow } from '../analysis/report.ts'
+import { cutLoss } from '../hasil/nilai.ts'
 import type { Bar } from '../types.ts'
 
 /**
@@ -33,6 +34,11 @@ export interface ScreenerOptions {
   minTrend?: number
   maxAtrPct?: number
   targetCap?: number
+  /**
+   * Kenapa kolom peringkat hilang, apa adanya dari lapisan IDX ("dimatikan lewat
+   * --tanpa-idx", "berhenti merespons", ...). Tanpa ini spanduk tidak menebak sebab.
+   */
+  alasanDegradasi?: string
   /** Waktu pembuatan, untuk spanduk draft. Bawaannya sekarang. */
   now?: Date
 }
@@ -58,9 +64,32 @@ function gateText(market: Market, o: ScreenerOptions): string {
   return parts.join(', ')
 }
 
+type Catatan = [label: string, kind: 'bad' | 'warn']
+
+const BAD_WY = new Set(['distribusi', 'markdown'])
+const BAD_VPA = new Set(['upthrust', 'no-demand'])
+
+/**
+ * Catatan risiko untuk baris yang lolos. Tidak menggagalkan gerbang — hanya
+ * memberi tahu kenapa baris itu tidak "bersih".
+ *
+ * R:R di bawah 1 ikut dicatat walau R:R bukan syarat gerbang: risiko ke stop
+ * lebih besar dari imbalan ke target, dan itu harus terlihat di tabel.
+ */
+function catatan(r: Record<string, unknown>): Catatan[] {
+  const out: Catatan[] = []
+  if (BAD_WY.has(r.WYCKOFF as string)) out.push([`Wyckoff ${r.WYCKOFF}`, 'bad'])
+  if (BAD_VPA.has(r.VPA_TERAKHIR as string)) out.push([`${r.VPA_TERAKHIR} ${String(r.VPA_TANGGAL ?? '').slice(5)}`, 'bad'])
+  if (r.FASE === 'rebound') out.push(['rebound dlm downtrend', 'warn'])
+  if (r.DIVERGENSI_OBV === 'bearish') out.push(['OBV bearish', 'warn'])
+  if (r.VOLUME_BACA === 'tekanan-jual' || r.VOLUME_BACA === 'rally-lemah') out.push([r.VOLUME_BACA, 'warn'])
+  if (typeof r.RR === 'number' && r.RR < 1) out.push([`R:R 1:${idNum(r.RR)}`, 'warn'])
+  return out
+}
+
 /** Satu baris tabel, berkunci header CSV — satu sumber kebenaran dengan laporan lain. */
-function tableRow(row: ScanRow, market: Market): Record<string, string | number | null> {
-  const out: Record<string, string | number | null> = {}
+function tableRow(row: ScanRow, market: Market): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
   for (const c of columnsFor(market)) {
     const v = c.value(row)
     out[c.header] = typeof v === 'number' ? (Number.isFinite(v) ? round(v, 4) : null) : v
@@ -72,6 +101,11 @@ function tableRow(row: ScanRow, market: Market): Record<string, string | number 
   delete out[valueKey]
   out.NILAI_HARIAN = value
   out.NILAI_HARIAN_TEKS = value == null ? null : market.moneyCompact(value)
+  // Cut loss yang benar-benar dipakai /hasil/, supaya angka di laci sama dengan
+  // angka yang dinilai — STOP analisa bisa jauh lebih dalam dari itu.
+  const plan = row.metrics.riskReward.available ? row.metrics.riskReward.value : null
+  out.CUT_LOSS = plan ? round(cutLoss(plan.entry, plan.stop), 4) : null
+  out.CATATAN = catatan(out)
   return out
 }
 
@@ -165,10 +199,11 @@ export function buildScreener(
 
   const used = [...new Set(rows.flatMap((r) => r.rank.used))]
   const meta = {
-    tanggal: rows[0]?.date ?? (options.now ?? new Date()).toISOString().slice(0, 10),
+    tanggal: tanggalRun(rows) ?? (options.now ?? new Date()).toISOString().slice(0, 10),
     draft: options.draft ?? false,
     dibuat: jakartaStamp(options.now ?? new Date()),
     degraded: rows.some((r) => r.rank.degraded),
+    alasanDegradasi: options.alasanDegradasi ?? null,
     used: used.join(', ') || 'n/a',
     exchange: market.exchangeLabel,
     volumeUnit: market.volumeUnit,

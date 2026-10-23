@@ -68,7 +68,7 @@ dan `out/<KODE>.json` berisi detail penuh tiap metrik beserta buktinya.
 | `--min-tren N` | Skor tren MA minimum, 0..1 (0 = mati) | 1 (5/5 syarat) |
 | `--maks-atr PERSEN` | ATR maksimum | 5,1 IDX / 7,6 crypto |
 | `--target-maks PERSEN` | Batas target di atas entry (0 = tanpa batas) | 10 |
-| `--hari-idx N` | Hari bursa riwayat aliran asing | 60 |
+| `--hari-idx N` | Hari bursa riwayat IDX (aliran asing, RS sektor) | 65 |
 | `--tanpa-idx` | Matikan lapisan IDX | menyala |
 | `--tanpa-html` | Jangan tulis halaman screener HTML | menyala |
 | `--draft` / `--final` | Paksa tanda DRAFT intraday di halaman HTML | otomatis |
@@ -80,7 +80,11 @@ baris yang sama dengan CSV/Excel, jadi tidak pernah berbeda angka.
 
 - Tabel semua emiten (tab **Lolos / Tersaring / Semua**), bisa diurutkan per
   kolom, dicari, dan disaring per fase, Wyckoff, tanpa peringatan, likuid saja.
-- Klik kode emiten untuk membuka laci: rencana entry/stop/target, alasan
+- **Tanpa peringatan** berarti tidak ada catatan dari Wyckoff (distribusi/markdown),
+  VPA (upthrust/no-demand), fase rebound, divergensi OBV bearish, baca volume
+  (tekanan jual/rally lemah), dan R:R di bawah 1. Bukan jaminan.
+- Klik kode emiten untuk membuka laci: rencana entry/stop/target, cut loss
+  evaluasi (stop dijepit 5–10% seperti di `/hasil/`), alasan
   gerbang, grafik 180 bar (candle, MA20/50/200, volume, garis support/resistance,
   penanda VPA), dan vonis + bukti tiap metrik. `index.html#KODE` langsung
   membuka emiten itu.
@@ -92,7 +96,7 @@ baris yang sama dengan CSV/Excel, jadi tidak pernah berbeda angka.
 - Spanduk **DRAFT** muncul otomatis untuk IDX kalau bar terakhir bertanggal hari
   ini dan scan dijalankan sebelum 16:15 WIB (volume hari itu belum lengkap).
   Paksa dengan `--draft` atau `--final`. Spanduk **terdegradasi** muncul kalau
-  ada kolom peringkat yang hilang.
+  ada kolom peringkat yang hilang, berikut sebabnya apa adanya (mis. `--tanpa-idx`).
 - Ambang gerbang, satuan uang, dan satuan volume ikut pasar dan opsi run
   (`--market crypto` menampilkan dolar dan volume USD).
 
@@ -176,7 +180,7 @@ ketimbang pindah tab, pakai yang itu.
 | `ENTRY` | Harga penutupan terakhir — titik acuan, bukan anjuran masuk. |
 | `STOP` | Support bernilai **terdekat** di bawah harga, dikurangi bantalan 0,5×ATR supaya tidak nempel di angka yang semua orang lihat. |
 | `TARGET` | Resistance bernilai terdekat di atas harga. |
-| `RR` | `(TARGET − ENTRY) / (ENTRY − STOP)`. Gerbang kedua; di bawah 2 dicoret. |
+| `RR` | `(TARGET − ENTRY) / (ENTRY − STOP)`. Bukan syarat gerbang (lihat di bawah); di bawah 1 dicatat sebagai peringatan di halaman HTML. |
 
 Level yang **sedang dipijak harga** tidak dihitung sebagai support maupun resistance —
 lihat catatan di bawah.
@@ -224,6 +228,9 @@ lihat catatan di bawah.
 **Gerbang** — gagal salah satu, emiten dicoret dari daftar berikut alasannya:
 
 1. **Likuiditas** (#5): nilai transaksi harian ≥ Rp 5 M (crypto $10 jt).
+   Selain itu, emiten yang bar terakhirnya lebih tua dari bar terbaru run
+   (suspensi, atau Yahoo tertinggal) dicoret dengan alasan `Data tertinggal`.
+   Tanggal run diambil dari bar terbaru semua emiten, bukan emiten pertama.
 2. **Rencana terukur** (#12): ada support di bawah dan resistance di atas harga.
 3. **Tren MA penuh** (#10): kelima syarat — close > MA20 > MA50 > MA200, MA50 dan
    MA200 menanjak.
@@ -373,7 +380,7 @@ per emiten per tanggal sampel). Bar disimpan di `raw/` dan dipakai ulang selama
 `indicators.ts`, `chart.ts`, dan `render.ts` tidak menyentuh jaringan maupun berkas.
 
 ```bash
-bun test        # 419 test
+bun test        # 438 test
 bun run typecheck
 ```
 

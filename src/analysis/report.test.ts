@@ -1,5 +1,6 @@
 import { expect, test, describe } from 'bun:test'
-import { buildRow, RANK_COLUMNS } from './report.ts'
+import { buildRow, RANK_COLUMNS, tanggalRun, tandaiTertinggal } from './report.ts'
+import { SCAN_DEFAULTS } from '../cli-args.ts'
 import { volumeProfile } from '../indicators.ts'
 import type { Bar } from '../types.ts'
 import type { ForeignDay } from './flow.ts'
@@ -151,7 +152,7 @@ describe('buildRow — peringkat', () => {
   test('akumulasi asing memberi skor lebih tinggi dari distribusi asing', () => {
     const beli = buildRow(input({ foreignDays: foreign(1_000_000) })).rank.score
     const jual = buildRow(input({ foreignDays: foreign(-1_000_000) })).rank.score
-    expect(beli).toBeGreaterThan(jual)
+    expect(beli!).toBeGreaterThan(jual!)
   })
 })
 
@@ -223,7 +224,7 @@ describe('buildRow — kolom peringkat per pasar', () => {
     const cryptoJual = buildRow(input(jual), { rankColumns: CRYPTO_COLUMNS })
     const idxJual = buildRow(input(jual))
     expect(idxJual.rank.used).toContain('asing')
-    expect(idxJual.rank.score).not.toBeCloseTo(cryptoJual.rank.score, 9)
+    expect(idxJual.rank.score).not.toBeCloseTo(cryptoJual.rank.score!, 9)
   })
 
   test('kolom yang benar-benar hilang tetap menandai terdegradasi', () => {
@@ -250,5 +251,45 @@ describe('buildRow — konvensi nilai harian diteruskan', () => {
       bawaan.metrics.liquidity.value!.avgDailyValue,
     )
     expect(row.metrics.liquidity.value!.avgDailyValue).toBeCloseTo(20_000_000, -3)
+  })
+})
+
+describe('buildRow — skor tanpa kolom', () => {
+  test('tidak ada satu pun kolom peringkat → skor null, bukan nol', () => {
+    const row = buildRow(input({ indexBars: [] }), { rankColumns: ['rs60'] })
+    expect(row.rank.used).toEqual([])
+    expect(row.rank.score).toBeNull()
+  })
+})
+
+describe('buildRow — RS sektor dengan riwayat IDX bawaan', () => {
+  test('bar sektor sepanjang --hari-idx bawaan cukup untuk RS sektor 60 hari', () => {
+    const sectorBars = healthy().slice(-SCAN_DEFAULTS.idxDays)
+    const row = buildRow(input({ sectorBars }))
+    expect(row.metrics.strength.value!.vsSector60).not.toBeNull()
+  })
+})
+
+describe('tanggalRun dan tandaiTertinggal', () => {
+  const dated = (date: string) => ({ ...buildRow(input()), date })
+
+  test('tanggal run adalah bar terbaru di antara semua baris, bukan baris pertama', () => {
+    expect(tanggalRun([dated('2026-10-01'), dated('2026-10-22'), dated('2026-10-21')])).toBe('2026-10-22')
+  })
+
+  test('tanpa baris, tanggal run null', () => {
+    expect(tanggalRun([])).toBeNull()
+  })
+
+  test('baris yang bar terakhirnya tertinggal gagal gerbang, dengan kedua tanggalnya', () => {
+    const [r] = tandaiTertinggal([dated('2026-10-01')], '2026-10-22')
+    expect(r!.gates.passed).toBe(false)
+    expect(r!.gates.failures.join(' ')).toContain('2026-10-01')
+    expect(r!.gates.failures.join(' ')).toContain('2026-10-22')
+  })
+
+  test('baris bertanggal run tidak berubah', () => {
+    const fresh = dated('2026-10-22')
+    expect(tandaiTertinggal([fresh], '2026-10-22')[0]).toEqual(fresh)
   })
 })

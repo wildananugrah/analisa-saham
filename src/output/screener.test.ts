@@ -175,3 +175,46 @@ describe('isIntraday', () => {
     expect(isIntraday('2026-10-21', CRYPTO, new Date('2026-10-21T08:00:00Z'))).toBe(false)
   })
 })
+
+describe('buildScreener — catatan risiko dan cut loss', async () => {
+  const template = await loadTemplate()
+  const rr = (ratio: number, stop = 930) =>
+    row('BDMN', { metrics: { ...row('X').metrics, riskReward: { ...row('X').metrics.riskReward, value: { entry: 1000, stop, target: 1050, ratio, passesGate: true } } } })
+  const rowsOf = (r: ScanRow) => embedded(buildScreener([r], new Map(), template, IDX, OPTS).html, 'ROWS')
+
+  test('R:R di bawah 1 jadi catatan, walau bukan syarat gerbang', () => {
+    expect(rowsOf(rr(0.51))[0].CATATAN).toContainEqual(['R:R 1:0,51', 'warn'])
+  })
+
+  test('rencana dan sinyal bersih → tanpa catatan', () => {
+    expect(rowsOf(row('BBCA'))[0].CATATAN).toEqual([])
+  })
+
+  test('catatan lama tetap ada: Wyckoff distribusi', () => {
+    const r = row('BBCA', { metrics: { ...row('X').metrics, wyckoff: { ...row('X').metrics.wyckoff, value: { phase: 'distribusi', reasons: [] } } } })
+    expect(rowsOf(r)[0].CATATAN).toContainEqual(['Wyckoff distribusi', 'bad'])
+  })
+
+  test('cut loss evaluasi ikut aturan /hasil/: stop dijepit ke 5–10% di bawah entry', () => {
+    expect(rowsOf(rr(1, 800))[0].CUT_LOSS).toBe(900)
+    expect(rowsOf(rr(1, 930))[0].CUT_LOSS).toBe(930)
+  })
+
+  test('tanpa rencana, cut loss null', () => {
+    const r = row('BBCA', { metrics: { ...row('X').metrics, riskReward: { ...row('X').metrics.riskReward, value: null, available: false } } })
+    expect(rowsOf(r)[0].CUT_LOSS).toBeNull()
+  })
+})
+
+describe('buildScreener — alasan terdegradasi', async () => {
+  const template = await loadTemplate()
+
+  test('meta membawa alasan dari lapisan IDX apa adanya', () => {
+    const { html } = buildScreener([row('BBCA')], new Map(), template, IDX, { ...OPTS, alasanDegradasi: 'Lapisan IDX dimatikan lewat --tanpa-idx.' })
+    expect(embedded(html, 'META').alasanDegradasi).toBe('Lapisan IDX dimatikan lewat --tanpa-idx.')
+  })
+
+  test('template tidak lagi menebak bahwa IDX tidak terjangkau', () => {
+    expect(template).not.toContain('Data IDX tidak terjangkau')
+  })
+})

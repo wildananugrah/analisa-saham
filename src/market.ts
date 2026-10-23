@@ -212,6 +212,21 @@ export function marketById(id: string): Market {
 }
 
 /**
+ * Buang candle harian yang belum tutup.
+ *
+ * Crypto: candle harian Yahoo bertanggal hari UTC dan baru tutup 00:00 UTC
+ * berikutnya. Scan pukul 07:15 WIB (00:15 UTC) sudah melihat candle hari baru
+ * yang baru berumur 15 menit — volume, RVOL, dan close-nya belum berarti apa-apa.
+ *
+ * IDX tidak disentuh: bar intraday IDX ditandai DRAFT, bukan dibuang.
+ */
+export function barTertutup(bars: Bar[], market: Market, now: Date = new Date()): Bar[] {
+  if (market.id !== 'crypto') return bars
+  const hariIni = now.toISOString().slice(0, 10)
+  return bars.at(-1)?.date === hariIni ? bars.slice(0, -1) : bars
+}
+
+/**
  * Rentang riwayat Yahoo yang cukup untuk jendela tampil plus pemanasan MA.
  *
  * Ditambah satu tahun sebagai bantalan: `range` Yahoo dihitung dari kalender,

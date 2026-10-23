@@ -62,18 +62,22 @@ export function analyzeRiskReward(
   }
 
   const ratio = reward / risk
+  // Ambang 0 berarti R:R bukan syarat gerbang. Rasionya tetap dicetak, tapi tidak
+  // boleh terbaca "memadai" hanya karena lolos ambang yang tidak ada.
+  const isGate = minRatio > 0
   const passesGate = ratio >= minRatio
+  const label = !isGate ? 'R:R' : passesGate ? 'R:R memadai' : 'R:R TIPIS'
 
   return metric(
     { entry, stop, target, ratio, passesGate },
-    `${passesGate ? 'R:R memadai' : 'R:R TIPIS'} 1:${ratio.toFixed(2)} — entry ${Math.round(entry)}, stop ${Math.round(stop)}, target ${Math.round(target)}`,
+    `${label} 1:${ratio.toFixed(2)}${isGate ? '' : ' (bukan syarat gerbang)'} — entry ${Math.round(entry)}, stop ${Math.round(stop)}, target ${Math.round(target)}`,
     support.score >= 0.6 && resistance.score >= 0.6 ? 'sedang' : 'rendah',
     [
       `Risiko ${Math.round(risk)} per lembar (entry ${Math.round(entry)} → stop ${Math.round(stop)}, support ${support.price} dikurangi ${BANTALAN_ATR}×ATR).`,
       capped
         ? `Imbalan ${Math.round(reward)} per lembar: target dibatasi +${Math.round(targetCap! * 100)}% dari entry (resistance ${resistance.price} lebih jauh).`
         : `Imbalan ${Math.round(reward)} per lembar (entry → resistance ${target}).`,
-      `Ambang minimum 1:${minRatio}.`,
+      isGate ? `Ambang minimum 1:${minRatio}.` : 'R:R bukan syarat gerbang run ini; angkanya untuk dibaca, bukan penyaring.',
     ],
   )
 }

@@ -1,5 +1,6 @@
 import { expect, test, describe } from 'bun:test'
-import { CRYPTO, IDX, historyRange, marketById } from './market.ts'
+import { barTertutup, CRYPTO, IDX, historyRange, marketById } from './market.ts'
+import type { Bar } from './types.ts'
 
 describe('IDX', () => {
   test('kode telanjang diberi sufiks .JK', () => {
@@ -159,5 +160,22 @@ describe('label grafik', () => {
     expect(CRYPTO.exchangeLabel).toBe('CRYPTO')
     expect(CRYPTO.volumeUnit).toBe('USD')
     expect(CRYPTO.toDisplayVolume(28e9)).toBe(28e9)
+  })
+})
+
+describe('barTertutup', () => {
+  const bar = (date: string): Bar => ({ date, open: 1, high: 1, low: 1, close: 1, volume: 1 })
+  const bars = [bar('2026-10-22'), bar('2026-10-23')]
+
+  test('crypto: candle hari UTC berjalan dibuang — belum tutup', () => {
+    expect(barTertutup(bars, CRYPTO, new Date('2026-10-23T00:15:00Z')).map((b) => b.date)).toEqual(['2026-10-22'])
+  })
+
+  test('crypto: candle kemarin yang sudah tutup tetap dipakai', () => {
+    expect(barTertutup(bars, CRYPTO, new Date('2026-10-24T00:15:00Z'))).toEqual(bars)
+  })
+
+  test('IDX tidak disentuh — bar intraday IDX ditangani tanda DRAFT', () => {
+    expect(barTertutup(bars, IDX, new Date('2026-10-23T03:00:00Z'))).toEqual(bars)
   })
 })

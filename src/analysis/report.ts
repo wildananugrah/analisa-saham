@@ -87,7 +87,8 @@ export interface ScanRow {
   }
   gates: { passed: boolean; failures: string[] }
   rank: {
-    score: number
+    /** null kalau tidak ada satu pun kolom peringkat — bukan nol. */
+    score: number | null
     columns: Record<RankColumn, number | null>
     used: RankColumn[]
     /** Ada kolom yang hilang — baris ini tidak sebanding dengan run yang lengkap. */
@@ -174,7 +175,7 @@ export function buildRow(input: ScanInput, options: ScanOptions = {}): ScanRow {
   // Ambangnya himpunan yang DIHARAPKAN pasar ini, bukan selalu keempatnya.
   const expected = options.rankColumns ?? RANK_COLUMNS
   const used = expected.filter((c) => columns[c] !== null)
-  const score = used.length > 0 ? used.reduce((a, c) => a + columns[c]!, 0) / used.length : 0
+  const score = used.length > 0 ? used.reduce((a, c) => a + columns[c]!, 0) / used.length : null
 
   return {
     code: input.code,
@@ -185,4 +186,28 @@ export function buildRow(input: ScanInput, options: ScanOptions = {}): ScanRow {
     gates: { passed: failures.length === 0, failures },
     rank: { score, columns, used: [...used], degraded: used.length < expected.length },
   }
+}
+
+/**
+ * Tanggal data run: bar TERBARU di antara semua baris.
+ *
+ * Bukan tanggal baris pertama — kalau emiten pertama watchlist disuspensi, run
+ * hari ini akan dinamai tanggal lamanya dan menimpa catatan hari itu.
+ */
+export function tanggalRun(rows: ScanRow[]): string | null {
+  return rows.reduce<string | null>((max, r) => (max === null || r.date > max ? r.date : max), null)
+}
+
+/**
+ * Baris yang bar terakhirnya lebih tua dari tanggal run gagal gerbang.
+ *
+ * Bar lama berarti emiten tidak diperdagangkan (suspensi, atau Yahoo tertinggal);
+ * entry, stop, dan targetnya disusun dari harga yang sudah tidak berlaku.
+ */
+export function tandaiTertinggal(rows: ScanRow[], tanggal: string): ScanRow[] {
+  return rows.map((r) => {
+    if (r.date >= tanggal) return r
+    const failures = [...r.gates.failures, `Data tertinggal: bar terakhir ${r.date}, run ${tanggal}.`]
+    return { ...r, gates: { passed: false, failures } }
+  })
 }

@@ -146,7 +146,9 @@ export function scanDefaultsFor(market: Market): ScanArgs {
     maxAtrPct: market.maxAtrPct,
     targetCap: 0.1,
     useIdx: market.hasIdxLayer,
-    idxDays: 60,
+    // RS sektor 60 hari butuh 61 bar sektor; 60 tidak pernah cukup. Bantalan untuk
+    // hari emiten disuspensi.
+    idxDays: 65,
     market,
     html: true,
     draft: null,
