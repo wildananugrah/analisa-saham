@@ -5,3 +5,5 @@ raw/
 report/
 *.bak
 logs/
+broker/*
+!broker/README.md
