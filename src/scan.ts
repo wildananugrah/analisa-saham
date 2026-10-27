@@ -11,7 +11,7 @@ import { renderTable } from './output/table.ts'
 import { toCsv } from './output/csv.ts'
 import { writeXlsx } from './output/xlsx.ts'
 import { toJson } from './output/json.ts'
-import { isIntraday, writeScreener } from './output/screener.ts'
+import { catatanPerKode, isIntraday, writeScreener } from './output/screener.ts'
 import { bolehCatat, MAKS_GAGAL, pilihanFromRows } from './hasil/nilai.ts'
 import { barTertutup, historyRange, MARKET_IDS } from './market.ts'
 
@@ -161,6 +161,9 @@ async function main(): Promise<number> {
   if (bolehCatat(run)) {
     pilihanPath = join(args.reportDir, `pilihan-${tanggal}.json`)
     await writeFile(pilihanPath, JSON.stringify(pilihanFromRows(passed), null, 1))
+    // Status semua emiten (bukan hanya yang lolos): pilihan terbuka bisa saja sudah
+    // tidak lolos hari ini, dan justru catatannya yang perlu terlihat di /hasil/.
+    await writeFile(join(args.reportDir, `status-${tanggal}.json`), JSON.stringify(catatanPerKode([...passed, ...skipped], market)))
   } else if (run.watchlist && !draft) {
     console.error(
       `Pilihan TIDAK dicatat: ${failed} dari ${codes.length} emiten gagal diambil (batas ${MAKS_GAGAL * 100}%). Catatan lama dipertahankan.`,

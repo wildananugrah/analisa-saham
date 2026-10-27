@@ -315,6 +315,11 @@ entry/stop/target utuh (CSV membulatkannya, dan untuk koin seharga $0,0003 itu
 berarti nol). Scan beberapa kode saja tidak menulisnya, supaya catatan hari itu
 tidak tertimpa.
 
+Run yang sama juga menulis `status-<TANGGAL>.json`: catatan risiko (kolom
+**Status** screener) untuk semua emiten. `/hasil/` memakai berkas terbaru untuk
+kolom Status di tabel pilihan yang masih terbuka — status hari ini, bukan saat
+pilihan dibuka. Emiten yang tidak ada di scan itu tampil `—`.
+
 `bun run src/hasil.ts` membaca semua berkas itu, mengambil bar terbaru, lalu menulis
 `report/hasil-<TANGGAL>/index.html` dan `hasil.json`. Aturannya:
 
@@ -380,7 +385,7 @@ per emiten per tanggal sampel). Bar disimpan di `raw/` dan dipakai ulang selama
 `indicators.ts`, `chart.ts`, dan `render.ts` tidak menyentuh jaringan maupun berkas.
 
 ```bash
-bun test        # 438 test
+bun test        # 442 test
 bun run typecheck
 ```
 

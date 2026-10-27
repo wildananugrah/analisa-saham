@@ -64,7 +64,7 @@ function gateText(market: Market, o: ScreenerOptions): string {
   return parts.join(', ')
 }
 
-type Catatan = [label: string, kind: 'bad' | 'warn']
+export type Catatan = [label: string, kind: 'bad' | 'warn']
 
 const BAD_WY = new Set(['distribusi', 'markdown'])
 const BAD_VPA = new Set(['upthrust', 'no-demand'])
@@ -107,6 +107,15 @@ function tableRow(row: ScanRow, market: Market): Record<string, unknown> {
   out.CUT_LOSS = plan ? round(cutLoss(plan.entry, plan.stop), 4) : null
   out.CATATAN = catatan(out)
   return out
+}
+
+/**
+ * Catatan risiko per kode untuk semua baris — yang sama dengan kolom STATUS di
+ * halaman screener. Dicatat scan.ts supaya /hasil/ bisa menampilkan status
+ * terkini pilihan yang masih terbuka.
+ */
+export function catatanPerKode(rows: ScanRow[], market: Market): Record<string, Catatan[]> {
+  return Object.fromEntries(rows.map((r) => [r.code, tableRow(r, market).CATATAN as Catatan[]]))
 }
 
 function detail(row: ScanRow) {

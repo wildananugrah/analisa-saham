@@ -77,6 +77,11 @@ tbody tr:last-child td { border-bottom: 0; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 500; }
 .badge.target { background: var(--up-soft); color: var(--up); }
 .badge.cut { background: var(--down-soft); color: var(--down); }
+.flags { display: flex; flex-wrap: wrap; gap: 4px; max-width: 240px; }
+.badge.bad { background: var(--down-soft); color: var(--down); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.ok { background: var(--up-soft); color: var(--up); }
+.mut { color: var(--muted); }
 .meter { display: grid; gap: 4px; min-width: 150px; }
 .meter .track { position: relative; height: 6px; background: var(--sunk); border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
 .meter .fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 99px; }
@@ -85,7 +90,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .meter small { font-size: 12px; color: var(--muted); }
 .empty { padding: 18px; color: var(--muted); text-align: center; }
 
-/* Ponsel: sembilan kolom tidak muat, dan yang tersembunyi di kanan justru return dan posisinya.
+/* Ponsel: sepuluh kolom tidak muat, dan yang tersembunyi di kanan justru return dan posisinya.
    Tiap baris jadi kartu dua kolom; label kolom dibawa sel lewat data-l. */
 @media (max-width: 640px) {
   .scroll { overflow: visible; background: none; border: 0; border-radius: 0; }
@@ -130,9 +135,9 @@ footer { color: var(--muted); font-size: 12px; }
   </details>
 
   <section>
-    <h2>Masih terbuka</h2>
+    <div><h2>Masih terbuka</h2><p class="sub" id="status-sub"></p></div>
     <div class="scroll"><table>
-      <thead><tr><th>Emiten</th><th>Tgl scan</th><th class="n">Entry</th><th class="n">Target</th><th class="n">Cut loss</th><th class="n">Terakhir</th><th class="n">Return</th><th>Posisi</th><th class="n">Hari</th></tr></thead>
+      <thead><tr><th>Emiten</th><th>Tgl scan</th><th class="n">Entry</th><th class="n">Target</th><th class="n">Cut loss</th><th class="n">Terakhir</th><th class="n">Return</th><th>Posisi</th><th class="n">Hari</th><th>Status</th></tr></thead>
       <tbody id="terbuka"></tbody>
     </table></div>
   </section>
@@ -180,6 +185,15 @@ function meter(h) {
   return `<div class="meter"><div class="track"><div class="fill neg" style="width:${f * 100}%"></div></div><small>${Math.round(f * 100)}% menuju cut loss</small></div>`
 }
 
+// Status = catatan risiko screener (Wyckoff, VPA, fase, OBV, baca volume, R:R < 1)
+// dari scan tercatat terakhir, bukan dari hari pilihan dibuka.
+function status(h) {
+  const list = pasar.status?.catatan[h.code]
+  if (!list) return '<span class="mut" title="Tidak ada di scan tercatat terakhir">—</span>'
+  if (!list.length) return '<span class="badge ok">bersih</span>'
+  return `<div class="flags">${list.map(([label, kind]) => `<span class="badge ${kind === 'bad' ? 'bad' : 'warn'}">${esc(label)}</span>`).join('')}</div>`
+}
+
 function render() {
   const q = $('cari').value.trim().toLowerCase()
   const match = (h) => !q || h.code.toLowerCase().includes(q) || h.name.toLowerCase().includes(q)
@@ -204,6 +218,10 @@ function render() {
     [r.avgReturn > 0 ? 'up' : r.avgReturn < 0 ? 'down' : '', r.dinilai ? pct(r.avgReturn) : '—', 'rata-rata return per pilihan'],
   ].map(([cls, v, label]) => `<div class="stat ${cls}"><b>${v}</b><span>${label}</span></div>`).join('')
 
+  $('status-sub').textContent = pasar.status
+    ? `Status dari screening ${tgl(pasar.status.tanggal)}: catatan risiko yang sama dengan kolom Status di screener.`
+    : ''
+
   const open = pasar.picks.filter((h) => h.status === 'open' && match(h))
   $('terbuka').innerHTML = open.length
     ? open.map((h) => `<tr>
@@ -211,8 +229,9 @@ function render() {
         <td class="n" data-l="Entry">${price(h.entry)}</td><td class="n" data-l="Target">${price(h.target)}</td><td class="n" data-l="Cut loss">${price(h.cut)}</td>
         <td class="n" data-l="Terakhir">${h.last ? price(h.last.close) : '—'}</td>
         <td class="n ${signCls(h.ret)}" data-l="Return">${pct(h.ret)}</td>
-        <td class="full">${meter(h)}</td><td class="n" data-l="Hari">${h.days}</td></tr>`).join('')
-    : `<tr><td colspan="9" class="empty">${q ? 'Tidak ada yang cocok.' : 'Belum ada pilihan terbuka.'}</td></tr>`
+        <td class="full">${meter(h)}</td><td class="n" data-l="Hari">${h.days}</td>
+        <td class="full" data-l="Status">${status(h)}</td></tr>`).join('')
+    : `<tr><td colspan="10" class="empty">${q ? 'Tidak ada yang cocok.' : 'Belum ada pilihan terbuka.'}</td></tr>`
 
   const done = pasar.picks.filter((h) => h.status !== 'open' && match(h))
     .sort((a, b) => b.settled.localeCompare(a.settled))

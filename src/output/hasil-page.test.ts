@@ -14,7 +14,8 @@ const picks = buildPicks(
   new Map([['BBCA', [{ date: '2026-10-02', open: 1000, high: 1250, low: 990, close: 1210, volume: 1 }]]]),
 )
 const pasar: HasilPasar[] = [
-  { id: 'idx', label: 'Saham IDX', currency: 'IDR', picks, ringkasan: summarize(picks), gagal: ['GOTO'] },
+  { id: 'idx', label: 'Saham IDX', currency: 'IDR', picks, ringkasan: summarize(picks), gagal: ['GOTO'],
+    status: { tanggal: '2026-10-21', catatan: { BBCA: [['no-demand 10-21', 'bad']] } } },
 ]
 const NOW = new Date('2026-10-22T11:00:00Z')
 
@@ -32,6 +33,7 @@ describe('buildHasilPage', async () => {
     expect(data.pasar[0].ringkasan).toMatchObject({ total: 1, target: 1 })
     expect(data.pasar[0].picks[0]).toMatchObject({ code: 'BBCA', status: 'target', exit: 1200 })
     expect(data.pasar[0].gagal).toEqual(['GOTO'])
+    expect(data.pasar[0].status).toEqual({ tanggal: '2026-10-21', catatan: { BBCA: [['no-demand 10-21', 'bad']] } })
   })
 
   test('</script> di data tidak menutup tag lebih awal', () => {

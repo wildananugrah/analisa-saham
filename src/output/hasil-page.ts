@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { inlineJson, jakartaStamp } from './screener.ts'
 import type { Hasil, Ringkasan } from '../hasil/nilai.ts'
 import type { MarketId } from '../market.ts'
+import type { Catatan } from './screener.ts'
 
 /**
  * Halaman rekam jejak: satu tab per pasar, ringkasan di atas, lalu pilihan yang
@@ -19,6 +20,11 @@ export interface HasilPasar {
   ringkasan: Ringkasan
   /** Emiten yang barnya gagal diambil di run ini. */
   gagal: string[]
+  /**
+   * Catatan risiko dari scan tercatat terakhir, per kode — kolom STATUS screener.
+   * null kalau belum ada status-<TANGGAL>.json.
+   */
+  status: { tanggal: string; catatan: Record<string, Catatan[]> } | null
 }
 
 export function buildHasilPage(pasar: HasilPasar[], template: string, now: Date): string {

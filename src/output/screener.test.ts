@@ -2,7 +2,7 @@ import { expect, test, describe } from 'bun:test'
 import { mkdtemp, readFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildScreener, CHART_BARS, CHUNK, isIntraday, loadTemplate, sma, writeScreener } from './screener.ts'
+import { buildScreener, catatanPerKode, CHART_BARS, CHUNK, isIntraday, loadTemplate, sma, writeScreener } from './screener.ts'
 import { CRYPTO, IDX } from '../market.ts'
 import type { ScanRow } from '../analysis/report.ts'
 import type { Bar } from '../types.ts'
@@ -188,6 +188,14 @@ describe('buildScreener — catatan risiko dan cut loss', async () => {
 
   test('rencana dan sinyal bersih → tanpa catatan', () => {
     expect(rowsOf(row('BBCA'))[0].CATATAN).toEqual([])
+  })
+
+  test('catatanPerKode sama dengan kolom STATUS halaman, untuk semua baris', () => {
+    const rows = [rr(0.51), row('BBCA')]
+    const status = catatanPerKode(rows, IDX)
+    expect(status).toEqual({ BDMN: [['R:R 1:0,51', 'warn']], BBCA: [] })
+    expect(embedded(buildScreener(rows, new Map(), template, IDX, OPTS).html, 'ROWS').map((r: any) => r.CATATAN))
+      .toEqual([status.BDMN, status.BBCA])
   })
 
   test('catatan lama tetap ada: Wyckoff distribusi', () => {

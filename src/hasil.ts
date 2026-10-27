@@ -2,6 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { buildPicks, summarize, yahooRangeSince, type Pilihan } from './hasil/nilai.ts'
 import { writeHasilPage, type HasilPasar } from './output/hasil-page.ts'
+import type { Catatan } from './output/screener.ts'
 import { CRYPTO, IDX, type Market } from './market.ts'
 import { fetchBars } from './yahoo.ts'
 import type { Bar } from './types.ts'
@@ -28,6 +29,22 @@ async function readPilihan(dir: string): Promise<Pilihan[]> {
   const files = names.filter((n) => PILIHAN_FILE.test(n))
   const lists = await Promise.all(files.map(async (n) => JSON.parse(await readFile(join(dir, n), 'utf8')) as Pilihan[]))
   return lists.flat()
+}
+
+const STATUS_FILE = /^status-(\d{4}-\d{2}-\d{2})\.json$/
+
+/** Status dari scan tercatat terakhir: hanya berkas terbaru yang dipakai. */
+async function readStatus(dir: string): Promise<HasilPasar['status']> {
+  let names: string[]
+  try {
+    names = await readdir(dir)
+  } catch {
+    return null
+  }
+  const latest = names.filter((n) => STATUS_FILE.test(n)).sort().at(-1)
+  if (!latest) return null
+  const catatan = JSON.parse(await readFile(join(dir, latest), 'utf8')) as Record<string, Catatan[]>
+  return { tanggal: latest.match(STATUS_FILE)![1]!, catatan }
 }
 
 async function nilaiPasar(market: Market, label: string, now: Date) {
@@ -60,6 +77,7 @@ async function nilaiPasar(market: Market, label: string, now: Date) {
     picks,
     ringkasan,
     gagal,
+    status: await readStatus(market.reportDir),
   }
   return { pasar, codes: codes.length }
 }
