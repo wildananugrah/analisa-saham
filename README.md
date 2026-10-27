@@ -317,8 +317,8 @@ tidak tertimpa.
 
 Run yang sama juga menulis `status-<TANGGAL>.json`: catatan risiko (kolom
 **Status** screener) untuk semua emiten. `/hasil/` memakai berkas terbaru untuk
-kolom Status di tabel pilihan yang masih terbuka — status hari ini, bukan saat
-pilihan dibuka. Emiten yang tidak ada di scan itu tampil `—`.
+kolom Status di tabel pilihan yang masih terbuka dan yang selesai — status hari
+ini, bukan saat pilihan dibuka. Emiten yang tidak ada di scan itu tampil `—`.
 
 `bun run src/hasil.ts` membaca semua berkas itu, mengambil bar terbaru, lalu menulis
 `report/hasil-<TANGGAL>/index.html` dan `hasil.json`. Aturannya:

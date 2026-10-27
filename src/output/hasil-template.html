@@ -135,7 +135,7 @@ footer { color: var(--muted); font-size: 12px; }
   </details>
 
   <section>
-    <div><h2>Masih terbuka</h2><p class="sub" id="status-sub"></p></div>
+    <div><h2>Masih terbuka</h2><p class="sub status-sub"></p></div>
     <div class="scroll"><table>
       <thead><tr><th>Emiten</th><th>Tgl scan</th><th class="n">Entry</th><th class="n">Target</th><th class="n">Cut loss</th><th class="n">Terakhir</th><th class="n">Return</th><th>Posisi</th><th class="n">Hari</th><th>Status</th></tr></thead>
       <tbody id="terbuka"></tbody>
@@ -143,9 +143,9 @@ footer { color: var(--muted); font-size: 12px; }
   </section>
 
   <section>
-    <h2>Selesai</h2>
+    <div><h2>Selesai</h2><p class="sub status-sub"></p></div>
     <div class="scroll"><table>
-      <thead><tr><th>Emiten</th><th>Tgl scan</th><th class="n">Entry</th><th>Hasil</th><th>Tgl selesai</th><th class="n">Keluar</th><th class="n">Return</th><th class="n">Hari</th></tr></thead>
+      <thead><tr><th>Emiten</th><th>Tgl scan</th><th class="n">Entry</th><th>Hasil</th><th>Tgl selesai</th><th class="n">Keluar</th><th class="n">Return</th><th class="n">Hari</th><th>Status</th></tr></thead>
       <tbody id="selesai"></tbody>
     </table></div>
   </section>
@@ -186,7 +186,7 @@ function meter(h) {
 }
 
 // Status = catatan risiko screener (Wyckoff, VPA, fase, OBV, baca volume, R:R < 1)
-// dari scan tercatat terakhir, bukan dari hari pilihan dibuka.
+// dari scan tercatat terakhir, bukan dari hari pilihan dibuka — juga untuk yang selesai.
 function status(h) {
   const list = pasar.status?.catatan[h.code]
   if (!list) return '<span class="mut" title="Tidak ada di scan tercatat terakhir">—</span>'
@@ -218,9 +218,10 @@ function render() {
     [r.avgReturn > 0 ? 'up' : r.avgReturn < 0 ? 'down' : '', r.dinilai ? pct(r.avgReturn) : '—', 'rata-rata return per pilihan'],
   ].map(([cls, v, label]) => `<div class="stat ${cls}"><b>${v}</b><span>${label}</span></div>`).join('')
 
-  $('status-sub').textContent = pasar.status
+  const sub = pasar.status
     ? `Status dari screening ${tgl(pasar.status.tanggal)}: catatan risiko yang sama dengan kolom Status di screener.`
     : ''
+  document.querySelectorAll('.status-sub').forEach((el) => (el.textContent = sub))
 
   const open = pasar.picks.filter((h) => h.status === 'open' && match(h))
   $('terbuka').innerHTML = open.length
@@ -240,8 +241,9 @@ function render() {
         <td class="full">${emiten(h)}</td><td data-l="Tgl scan">${tgl(h.date)}</td><td class="n" data-l="Entry">${price(h.entry)}</td>
         <td data-l="Hasil"><span class="badge ${h.status}">${h.status === 'target' ? 'Kena target' : 'Kena cut loss'}</span></td>
         <td data-l="Tgl selesai">${tgl(h.settled)}</td><td class="n" data-l="Keluar">${price(h.exit)}</td>
-        <td class="n ${signCls(h.ret)}" data-l="Return">${pct(h.ret)}</td><td class="n" data-l="Hari">${h.days}</td></tr>`).join('')
-    : `<tr><td colspan="8" class="empty">${q ? 'Tidak ada yang cocok.' : 'Belum ada pilihan yang selesai.'}</td></tr>`
+        <td class="n ${signCls(h.ret)}" data-l="Return">${pct(h.ret)}</td><td class="n" data-l="Hari">${h.days}</td>
+        <td class="full" data-l="Status">${status(h)}</td></tr>`).join('')
+    : `<tr><td colspan="9" class="empty">${q ? 'Tidak ada yang cocok.' : 'Belum ada pilihan yang selesai.'}</td></tr>`
 }
 
 $('dibuat').textContent = DATA.dibuat
