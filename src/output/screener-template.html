@@ -144,6 +144,7 @@ aside.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 1
     <select id="fase" aria-label="Filter fase"><option value="">Semua fase</option></select>
     <select id="wyck" aria-label="Filter Wyckoff"><option value="">Semua Wyckoff</option></select>
     <select id="vpa" aria-label="Filter VPA"><option value="">Semua VPA</option></select>
+    <select id="baca" aria-label="Filter baca volume"><option value="">Semua baca volume</option></select>
     <label class="chk"><input type="checkbox" id="clean"> Tanpa peringatan</label>
     <label class="chk"><input type="checkbox" id="liquid"> Likuid saja</label>
     <span class="count" id="count"></span>
@@ -199,6 +200,7 @@ const uniq = k => [...new Set(ROWS.map(r => r[k]).filter(Boolean))].sort();
 uniq('FASE').forEach(v => $('#fase').insertAdjacentHTML('beforeend', `<option>${esc(v)}</option>`));
 uniq('WYCKOFF').forEach(v => $('#wyck').insertAdjacentHTML('beforeend', `<option>${esc(v)}</option>`));
 uniq('VPA_TERAKHIR').forEach(v => $('#vpa').insertAdjacentHTML('beforeend', `<option>${esc(v)}</option>`));
+uniq('VOLUME_BACA').forEach(v => $('#baca').insertAdjacentHTML('beforeend', `<option>${esc(v)}</option>`));
 if (ROWS.some(r => !r.VPA_TERAKHIR)) $('#vpa').insertAdjacentHTML('beforeend', '<option value="-">tanpa sinyal</option>');
 const state = { tab: 'lolos', sort: 'SKOR', dir: -1 };
 try { const s = JSON.parse(localStorage.getItem('scr-state') || '{}'); Object.assign(state, s); } catch (e) {}
@@ -230,12 +232,12 @@ const wyPill = w => `<span class="pill ${w === 'markup' || w === 'akumulasi' ? '
 $('#thead').innerHTML = COLS.map(([k, l, , c]) => `<th data-k="${k}" class="${c || ''}" tabindex="0">${l}</th>`).join('');
 
 function visible() {
-  const q = $('#q').value.trim().toUpperCase(), fa = $('#fase').value, wy = $('#wyck').value, vp = $('#vpa').value;
+  const q = $('#q').value.trim().toUpperCase(), fa = $('#fase').value, wy = $('#wyck').value, vp = $('#vpa').value, bc = $('#baca').value;
   return ROWS.filter(r =>
     (state.tab === 'semua' || (state.tab === 'lolos') === r.pass) &&
     (!q || r.KODE.includes(q) || (r.NAMA || '').toUpperCase().includes(q)) &&
     (!fa || r.FASE === fa) && (!wy || r.WYCKOFF === wy) &&
-    (!vp || (vp === '-' ? !r.VPA_TERAKHIR : r.VPA_TERAKHIR === vp)) &&
+    (!vp || (vp === '-' ? !r.VPA_TERAKHIR : r.VPA_TERAKHIR === vp)) && (!bc || r.VOLUME_BACA === bc) &&
     (!$('#clean').checked || !r.flags.length) && (!$('#liquid').checked || r.liquid));
 }
 function render() {
@@ -257,7 +259,7 @@ function render() {
   try { localStorage.setItem('scr-state', JSON.stringify({ tab: state.tab, sort: state.sort, dir: state.dir })); } catch (e) {}
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { state.tab = b.dataset.tab; render(); } });
-['#q', '#fase', '#wyck', '#vpa', '#clean', '#liquid'].forEach(s => $(s).addEventListener('input', render));
+['#q', '#fase', '#wyck', '#vpa', '#baca', '#clean', '#liquid'].forEach(s => $(s).addEventListener('input', render));
 const sortBy = th => { const k = th.dataset.k; state.dir = state.sort === k ? -state.dir : (['KODE', 'FASE', 'WYCKOFF', 'TREN_HARIAN', 'VPA_TERAKHIR', 'GERBANG'].includes(k) ? 1 : -1); state.sort = k; render(); };
 $('#thead').addEventListener('click', e => { const th = e.target.closest('th'); if (th) sortBy(th); });
 $('#thead').addEventListener('keydown', e => { if (e.key === 'Enter') { const th = e.target.closest('th'); if (th) sortBy(th); } });
