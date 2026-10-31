@@ -79,7 +79,9 @@ dan `out/<KODE>.json` berisi detail penuh tiap metrik beserta buktinya.
 baris yang sama dengan CSV/Excel, jadi tidak pernah berbeda angka.
 
 - Tabel semua emiten (tab **Lolos / Tersaring / Semua**), bisa diurutkan per
-  kolom, dicari, dan disaring per fase, Wyckoff, tanpa peringatan, likuid saja.
+  kolom, dicari, dan disaring per fase, Wyckoff, sinyal VPA (termasuk "tanpa
+  sinyal"), baca volume, tanpa peringatan, likuid saja. Pilihan tiap saringan
+  diambil dari nilai yang muncul di scan hari itu.
 - **Tanpa peringatan** berarti tidak ada catatan dari Wyckoff (distribusi/markdown),
   VPA (upthrust/no-demand), fase rebound, divergensi OBV bearish, baca volume
   (tekanan jual/rally lemah), dan R:R di bawah 1. Bukan jaminan.
@@ -149,7 +151,7 @@ ketimbang pindah tab, pakai yang itu.
 |---|---|
 | `TREN_HARIAN` | `uptrend` / `downtrend` / `sideways`, dari dua swing high dan dua swing low terakhir. |
 | `TREN_MINGGUAN` | Sama, atas bar mingguan. Dipakai sebagai arah; kalau bertentangan dengan harian, keyakinannya turun. |
-| `FASE` | Posisi di dalam struktur: `pullback` (mundur dalam uptrend — peluang beli), `rebound` (naik dalam downtrend — sering jebakan), `impulse`, `datar`. **Pullback dan rebound bisa terlihat mirip di grafik; bedanya ada di struktur.** |
+| `FASE` | Posisi di dalam struktur: `pullback` (mundur dalam uptrend — peluang beli), `rebound` (naik dalam downtrend — sering jebakan), `impulse` (bergerak searah struktur, naik maupun turun), `datar`. **Pullback dan rebound bisa terlihat mirip di grafik; bedanya ada di struktur.** Aturan lengkapnya di [Fase, Wyckoff, dan VPA](#fase-wyckoff-dan-vpa). |
 
 **Kekuatan relatif (#9)**
 
@@ -193,6 +195,8 @@ lihat catatan di bawah.
 | `VPA_TANGGAL` | Kapan sinyal itu terjadi. **Sinyal dua pekan lalu tidak sama beratnya dengan sinyal kemarin.** |
 | `WYCKOFF` | `akumulasi`, `markup`, `distribusi`, `markdown`, `tidak-jelas`. Hanya `markup` — atau akumulasi akhir setelah spring terkonfirmasi — yang nyaman untuk posisi beli. |
 
+Cara ketiga kolom ini dihitung ada di [Fase, Wyckoff, dan VPA](#fase-wyckoff-dan-vpa).
+
 **Aliran asing (#8)**
 
 | Kolom | Arti |
@@ -222,6 +226,72 @@ lihat catatan di bawah.
   memilih target yang jauh, dan di uji ulang target itu jarang tercapai sebelum cut
   loss: hanya 20% (IDX) dan 6% (crypto). Kolom R:R tetap dihitung dan ditampilkan;
   `--min-rr 2` mengembalikan syarat lama.
+
+### Fase, Wyckoff, dan VPA
+
+Ketiganya saling bertumpu: **fase** dibaca dari struktur swing, **VPA** dari bar
+per bar, dan **Wyckoff** menggabungkan struktur dengan kejadian VPA. Semuanya
+aturan yang bisa diperiksa ulang di grafik — bukan penilaian mata.
+
+**Fase** (`src/analysis/structure.ts`) — di mana harga berada di dalam trennya.
+
+1. Cari swing high dan swing low: bar yang high-nya tertinggi (atau low-nya
+   terendah) di antara 3 bar kiri **dan** 3 bar kanan. Karena butuh 3 bar
+   konfirmasi, swing terbaru selalu tertinggal 3 bar.
+2. Bandingkan dua swing high dan dua swing low terakhir (beda < 1% dianggap sama):
+   high dan low sama-sama naik → `uptrend`; sama-sama turun → `downtrend`; selain
+   itu → `sideways`.
+3. Fase dari close terakhir:
+
+| Struktur | Close | Fase | Artinya |
+|---|---|---|---|
+| uptrend | di bawah swing high terakhir | `pullback` | Mundur di dalam tren naik — area beli selama higher low bertahan. |
+| uptrend | di atas swing high terakhir | `impulse` | Sedang menembus ke atas; mengejar di sini berarti stop lebih jauh. |
+| downtrend | di atas swing low terakhir | `rebound` | Memantul di dalam tren turun — sering jebakan; diberi peringatan. |
+| downtrend | di bawah swing low terakhir | `impulse` | Sedang jatuh membuat low baru. |
+| sideways | apa pun | `datar` | Tidak ada fase yang jelas. |
+
+Jadi `impulse` bisa naik **atau** turun — lihat `TREN_HARIAN` untuk arahnya.
+
+**VPA** (`src/analysis/vpa.ts`) — bar penanda ala Volume Price Analysis dalam
+30 bar terakhir. Tiap bar dibandingkan dengan rata-rata 20 bar sebelumnya:
+RVOL (volume ÷ rata-rata volume), spread (high − low ÷ rata-rata spread), dan
+posisi close di dalam rentang bar. Satu bar paling banyak dapat satu label,
+diperiksa berurutan:
+
+| Urutan | Sinyal | Syarat | Tafsir |
+|---|---|---|---|
+| 1 | `spring` | Low menembus sebuah support, close kembali di atasnya, RVOL ≥ 1,2 | Shakeout: penjual dipancing keluar lalu harga pulih. Bullish. |
+| 2 | `stopping-volume` | Low terendah 20 bar, RVOL ≥ 2, close di sepertiga atas | Jual deras diserap di dekat dasar (selling climax). Bullish. |
+| 3 | `upthrust` | High tertinggi 20 bar, close di sepertiga bawah, RVOL ≥ 1,5 | Tembus ke atas lalu ditolak — barang dilepas. Bearish. |
+| 4 | `no-supply` | Bar turun, RVOL ≤ 0,7, spread ≤ 0,7× rata-rata, masih di atas support | Turun tanpa penjual. Bullish, terutama setelah akumulasi. |
+| 5 | `no-demand` | Bar naik, RVOL ≤ 0,7 | Naik tanpa pembeli yang mengejar. Bearish. |
+
+Kolom `VPA_TERAKHIR` hanya menampilkan **sinyal terakhir**; daftar lengkapnya
+ada di laci emiten dan di `out/<KODE>.json`. Kosong (`—`, saringan "tanpa
+sinyal") berarti tidak ada bar penanda dalam 30 bar. Ambang di atas adalah
+konvensi yang lazim, bukan hukum — aturan sekaku ini pasti menghasilkan positif
+palsu, jadi keyakinannya dibatasi maksimal `sedang`.
+
+**Wyckoff** (`src/analysis/wyckoff.ts`) — tebakan siklus besar, diperiksa berurutan:
+
+| Fase Wyckoff | Syarat | Sikap |
+|---|---|---|
+| `markup` | Struktur harian uptrend dan close > MA50 | Satu-satunya fase yang nyaman untuk beli. |
+| `markdown` | Struktur harian downtrend dan close < MA50 | Jangan menangkap pisau jatuh. |
+| `distribusi` | Sideways dan ada `upthrust` dalam 30 bar | Barang sedang dilepas — hindari beli. |
+| `akumulasi` | Sideways dan ada `spring` atau `stopping-volume` dalam 30 bar | Layak diawasi, tunggu markup terkonfirmasi. |
+| `tidak-jelas` | Selain itu (mis. uptrend tapi close di bawah MA50, atau sideways tanpa penanda) | Struktur belum memberi tahu apa pun. |
+
+Keyakinan `tinggi` hanya untuk markup/markdown yang seluruh syaratnya sejalan
+(MA tersusun dan tren mingguan searah); selain itu paling tinggi `sedang`.
+
+**Cara memakainya bersama.** Kombinasi yang paling sejalan dengan gerbang adalah
+Wyckoff `markup` + fase `pullback` + VPA terbaru `no-supply`/`spring`: tren naik,
+sedang mundur, dan penjual kering. Sebaliknya, `distribusi`/`markdown`, fase
+`rebound`, dan VPA terbaru `upthrust`/`no-demand` masing-masing memunculkan
+peringatan di kolom Status emiten yang lolos. Selalu perhatikan `VPA_TANGGAL` — sinyal 25 bar lalu sudah basi.
+Ketiganya **tidak ikut memeringkat** (lihat di bawah).
 
 ### Gerbang dan peringkat
 
