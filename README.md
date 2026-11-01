@@ -79,9 +79,9 @@ dan `out/<KODE>.json` berisi detail penuh tiap metrik beserta buktinya.
 baris yang sama dengan CSV/Excel, jadi tidak pernah berbeda angka.
 
 - Tabel semua emiten (tab **Lolos / Tersaring / Semua**), bisa diurutkan per
-  kolom, dicari, dan disaring per fase, Wyckoff, sinyal VPA (termasuk "tanpa
-  sinyal"), baca volume, tanpa peringatan, likuid saja. Pilihan tiap saringan
-  diambil dari nilai yang muncul di scan hari itu.
+  kolom, dicari, dan disaring per tren harian, tren mingguan, fase, Wyckoff,
+  sinyal VPA (termasuk "tanpa sinyal"), baca volume, tanpa peringatan, likuid
+  saja. Pilihan tiap saringan diambil dari nilai yang muncul di scan hari itu.
 - **Tanpa peringatan** berarti tidak ada catatan dari Wyckoff (distribusi/markdown),
   VPA (upthrust/no-demand), fase rebound, divergensi OBV bearish, baca volume
   (tekanan jual/rally lemah), dan R:R di bawah 1. Bukan jaminan.

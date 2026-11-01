@@ -141,6 +141,8 @@ aside.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 1
       <button role="tab" data-tab="semua" aria-selected="false">Semua<span class="c" id="c-semua"></span></button>
     </div>
     <input type="search" id="q" placeholder="Cari kode / nama" aria-label="Cari kode atau nama emiten">
+    <select id="trenD" aria-label="Filter tren harian"><option value="">Semua tren harian</option></select>
+    <select id="trenW" aria-label="Filter tren mingguan"><option value="">Semua tren mingguan</option></select>
     <select id="fase" aria-label="Filter fase"><option value="">Semua fase</option></select>
     <select id="wyck" aria-label="Filter Wyckoff"><option value="">Semua Wyckoff</option></select>
     <select id="vpa" aria-label="Filter VPA"><option value="">Semua VPA</option></select>
@@ -197,6 +199,8 @@ $('#banners').innerHTML = bn.join('');
 
 /* filters */
 const uniq = k => [...new Set(ROWS.map(r => r[k]).filter(Boolean))].sort();
+uniq('TREN_HARIAN').forEach(v => $('#trenD').insertAdjacentHTML('beforeend', `<option>${esc(v)}</option>`));
+uniq('TREN_MINGGUAN').forEach(v => $('#trenW').insertAdjacentHTML('beforeend', `<option>${esc(v)}</option>`));
 uniq('FASE').forEach(v => $('#fase').insertAdjacentHTML('beforeend', `<option>${esc(v)}</option>`));
 uniq('WYCKOFF').forEach(v => $('#wyck').insertAdjacentHTML('beforeend', `<option>${esc(v)}</option>`));
 uniq('VPA_TERAKHIR').forEach(v => $('#vpa').insertAdjacentHTML('beforeend', `<option>${esc(v)}</option>`));
@@ -232,10 +236,11 @@ const wyPill = w => `<span class="pill ${w === 'markup' || w === 'akumulasi' ? '
 $('#thead').innerHTML = COLS.map(([k, l, , c]) => `<th data-k="${k}" class="${c || ''}" tabindex="0">${l}</th>`).join('');
 
 function visible() {
-  const q = $('#q').value.trim().toUpperCase(), fa = $('#fase').value, wy = $('#wyck').value, vp = $('#vpa').value, bc = $('#baca').value;
+  const q = $('#q').value.trim().toUpperCase(), td = $('#trenD').value, tw = $('#trenW').value, fa = $('#fase').value, wy = $('#wyck').value, vp = $('#vpa').value, bc = $('#baca').value;
   return ROWS.filter(r =>
     (state.tab === 'semua' || (state.tab === 'lolos') === r.pass) &&
     (!q || r.KODE.includes(q) || (r.NAMA || '').toUpperCase().includes(q)) &&
+    (!td || r.TREN_HARIAN === td) && (!tw || r.TREN_MINGGUAN === tw) &&
     (!fa || r.FASE === fa) && (!wy || r.WYCKOFF === wy) &&
     (!vp || (vp === '-' ? !r.VPA_TERAKHIR : r.VPA_TERAKHIR === vp)) && (!bc || r.VOLUME_BACA === bc) &&
     (!$('#clean').checked || !r.flags.length) && (!$('#liquid').checked || r.liquid));
@@ -259,7 +264,7 @@ function render() {
   try { localStorage.setItem('scr-state', JSON.stringify({ tab: state.tab, sort: state.sort, dir: state.dir })); } catch (e) {}
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { state.tab = b.dataset.tab; render(); } });
-['#q', '#fase', '#wyck', '#vpa', '#baca', '#clean', '#liquid'].forEach(s => $(s).addEventListener('input', render));
+['#q', '#trenD', '#trenW', '#fase', '#wyck', '#vpa', '#baca', '#clean', '#liquid'].forEach(s => $(s).addEventListener('input', render));
 const sortBy = th => { const k = th.dataset.k; state.dir = state.sort === k ? -state.dir : (['KODE', 'FASE', 'WYCKOFF', 'TREN_HARIAN', 'VPA_TERAKHIR', 'GERBANG'].includes(k) ? 1 : -1); state.sort = k; render(); };
 $('#thead').addEventListener('click', e => { const th = e.target.closest('th'); if (th) sortBy(th); });
 $('#thead').addEventListener('keydown', e => { if (e.key === 'Enter') { const th = e.target.closest('th'); if (th) sortBy(th); } });
